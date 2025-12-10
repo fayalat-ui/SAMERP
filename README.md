@@ -1,68 +1,40 @@
-# Shadcn-UI Template Usage Instructions
+# SAM ERP - Sistema de Administración y Monitoreo
 
-## technology stack
+## 🚀 Deploy en Netlify
 
-This project is built with:
+Para deployar este proyecto en Netlify:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. **Desde GitHub (Recomendado)**:
+   - Conecta tu cuenta de Netlify con GitHub
+   - Selecciona el repositorio: fayalat-ui/SAMERP
+   - Build command: `pnpm run build`
+   - Publish directory: `dist`
 
-All shadcn/ui components have been downloaded under `@/components/ui`.
+2. **Deploy Manual**:
+   - Descarga SAM-ERP-netlify-deploy.tar.gz
+   - Extrae la carpeta `dist/`
+   - Arrastra `dist/` a Netlify
 
-## File Structure
+## 📋 Configuración de Build
 
-- `index.html` - HTML entry point
-- `vite.config.ts` - Vite configuration file
-- `tailwind.config.js` - Tailwind CSS configuration file
-- `package.json` - NPM dependencies and scripts
-- `src/app.tsx` - Root component of the project
-- `src/main.tsx` - Project entry point
-- `src/index.css` - Existing CSS configuration
-- `src/pages/Index.tsx` - Home page logic
+- **Build Command**: `pnpm install && pnpm run build`
+- **Publish Directory**: `dist`
+- **Node Version**: 18.x
 
-## Components
+## 🎯 Características
 
-- All shadcn/ui components are pre-downloaded and available at `@/components/ui`
+- ✅ Sistema ERP completo para gestión de seguridad
+- ✅ Autenticación con Supabase
+- ✅ Diseño moderno con gradientes y glassmorphism
+- ✅ Responsive design
+- ✅ Gestión de roles y permisos
 
-## Styling
+## 🔗 Enlaces
 
-- Add global styles to `src/index.css` or create new CSS files as needed
-- Use Tailwind classes for styling components
+- **GitHub**: https://github.com/fayalat-ui/SAMERP
+- **Demo**: [URL de Netlify una vez deployado]
 
-## Development
+---
 
-- Import components from `@/components/ui` in your React components
-- Customize the UI by modifying the Tailwind configuration
+Desarrollado con ❤️ usando React + TypeScript + Tailwind CSS + shadcn/ui
 
-## Note
-
-- The `@/` path alias points to the `src/` directory
-- In your typescript code, don't re-export types that you're already importing
-
-# Commands
-
-**Install Dependencies**
-
-```shell
-pnpm i
-```
-
-**Add Dependencies**
-
-```shell
-pnpm add some_new_dependency
-
-**Start Preview**
-
-```shell
-pnpm run dev
-```
-
-**To build**
-
-```shell
-pnpm run build
-```
