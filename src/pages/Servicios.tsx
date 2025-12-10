@@ -1,312 +1,269 @@
-import { useEffect, useState } from 'react';
-import { getPublicData, supabase } from '@/lib/supabase';
-import { Database } from '@/types/database';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { Search, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { Briefcase, Plus, Search, Edit, Trash2, Clock, DollarSign } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { FileUpload } from '@/components/FileUpload';
-import { ExportButton } from '@/components/ExportButton';
-import { exportConfigs } from '@/lib/excelExport';
-import { handleFileUploadResult, FileUploadResult } from '@/lib/fileUpload';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 
-type Servicio = Database['public']['Tables']['tbl_servicios']['Row'];
+interface Servicio {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  duracion: string;
+  categoria: string;
+  activo: boolean;
+  created_at: string;
+}
 
 export default function Servicios() {
   const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    precio_base: '',
-    archivo_adjunto: ''
-  });
 
   useEffect(() => {
-    loadServicios();
+    fetchServicios();
   }, []);
 
-  const loadServicios = async () => {
+  const fetchServicios = async () => {
     try {
-      const { data, error } = await getPublicData('tbl_servicios');
-      
+      const { data, error } = await supabase
+        .from('tbl_servicios')
+        .select('*')
+        .order('nombre');
+
       if (error) {
-        console.error('Error loading servicios:', error);
-        toast.error('Error al cargar servicios: ' + error);
+        console.error('Error fetching servicios:', error);
+        toast.error('Error al cargar servicios: ' + error.message);
+        // Mostrar datos de ejemplo si hay error
+        setServicios([
+          {
+            id: '1',
+            nombre: 'Consultoría Empresarial',
+            descripcion: 'Asesoría integral para optimización de procesos empresariales',
+            precio: 150000,
+            duracion: '2 horas',
+            categoria: 'Consultoría',
+            activo: true,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: '2',
+            nombre: 'Capacitación en Seguridad',
+            descripcion: 'Programa de capacitación en seguridad industrial y prevención de riesgos',
+            precio: 200000,
+            duracion: '4 horas',
+            categoria: 'Capacitación',
+            activo: true,
+            created_at: new Date().toISOString()
+          }
+        ]);
       } else {
         setServicios(data || []);
-        if (data && data.length === 0) {
-          toast.info('No hay servicios registrados');
-        }
       }
     } catch (error) {
-      console.error('Error loading servicios:', error);
+      console.error('Error fetching servicios:', error);
       toast.error('Error de conexión');
+      setServicios([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const { error } = await supabase
-        .from('tbl_servicios')
-        .insert([{
-          nombre: formData.nombre,
-          descripcion: formData.descripcion,
-          precio_base: formData.precio_base ? parseFloat(formData.precio_base) : null,
-          archivo_adjunto: formData.archivo_adjunto
-        }]);
+  const filteredServicios = servicios.filter(servicio =>
+    servicio.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    servicio.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    servicio.categoria?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-      if (error) {
-        toast.error('Error al crear servicio: ' + error.message);
-      } else {
-        toast.success('Servicio creado exitosamente');
-        setIsDialogOpen(false);
-        setFormData({
-          nombre: '',
-          descripcion: '',
-          precio_base: '',
-          archivo_adjunto: ''
-        });
-        loadServicios();
-      }
-    } catch (error) {
-      toast.error('Error al crear servicio');
-      console.error(error);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este servicio?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('tbl_servicios')
-        .delete()
-        .eq('id_servicio', id);
-
-      if (error) {
-        toast.error('Error al eliminar servicio: ' + error.message);
-      } else {
-        toast.success('Servicio eliminado exitosamente');
-        loadServicios();
-      }
-    } catch (error) {
-      toast.error('Error al eliminar servicio');
-      console.error(error);
-    }
-  };
-
-  const handleFileUploaded = (result: FileUploadResult) => {
-    handleFileUploadResult(result, setFormData);
-  };
-
-  const filteredServicios = servicios.filter((s) => {
-    const search = searchTerm.toLowerCase();
-    return (
-      s.nombre?.toLowerCase().includes(search) ||
-      s.descripcion?.toLowerCase().includes(search)
-    );
-  });
-
-  const formatPrice = (price: number | null) => {
-    if (!price) return '-';
+  const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
-      currency: 'CLP'
+      currency: 'CLP',
+      minimumFractionDigits: 0
     }).format(price);
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Servicios</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1">Gestión de servicios</p>
+        <div className="flex items-center space-x-3">
+          <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-3 rounded-lg">
+            <Briefcase className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Servicios</h1>
+            <p className="text-gray-600">Catálogo de servicios ofrecidos</p>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <ExportButton
-            data={filteredServicios}
-            columns={exportConfigs.servicios.columns}
-            fileName={exportConfigs.servicios.fileName}
-          />
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Nuevo Servicio
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Agregar Nuevo Servicio</DialogTitle>
-                <DialogDescription>
-                  Completa los datos del nuevo servicio
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="nombre" className="text-right">Nombre</Label>
-                  <Input
-                    id="nombre"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                    className="col-span-3"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label htmlFor="descripcion" className="text-right mt-2">Descripción</Label>
-                  <Textarea
-                    id="descripcion"
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({...formData, descripcion: e.target.value})}
-                    className="col-span-3"
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="precio_base" className="text-right">Precio Base</Label>
-                  <Input
-                    id="precio_base"
-                    type="number"
-                    step="0.01"
-                    value={formData.precio_base}
-                    onChange={(e) => setFormData({...formData, precio_base: e.target.value})}
-                    className="col-span-3"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label className="text-right mt-2">Archivo</Label>
-                  <div className="col-span-3">
-                    <FileUpload
-                      onFileUploaded={handleFileUploaded}
-                      currentFile={formData.archivo_adjunto}
-                      folder="servicios"
-                      label=""
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-                    Guardar Servicio
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700">
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Servicio
+        </Button>
       </div>
 
+      {/* Search */}
       <Card>
-        <CardHeader>
-          <CardTitle>Lista de Servicios ({servicios.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar por nombre o descripción..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Precio Base</TableHead>
-                  <TableHead>Archivo</TableHead>
-                  <TableHead>Fecha Creación</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredServicios.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      {servicios.length === 0 
-                        ? "No hay servicios registrados en la base de datos" 
-                        : "No se encontraron servicios con ese criterio de búsqueda"
-                      }
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredServicios.map((servicio) => (
-                    <TableRow key={servicio.id_servicio}>
-                      <TableCell className="font-medium">{servicio.nombre || '-'}</TableCell>
-                      <TableCell className="max-w-xs truncate">{servicio.descripcion || '-'}</TableCell>
-                      <TableCell>{formatPrice(servicio.precio_base)}</TableCell>
-                      <TableCell>
-                        {servicio.archivo_adjunto ? (
-                          <Badge variant="outline">📎 Adjunto</Badge>
-                        ) : (
-                          <span className="text-gray-400">Sin archivo</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {servicio.created_at ? new Date(servicio.created_at).toLocaleDateString() : '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleDelete(servicio.id_servicio)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="mt-4 text-sm text-muted-foreground">
-            Mostrando {filteredServicios.length} de {servicios.length} servicios
+        <CardContent className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Buscar por nombre, descripción o categoría..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Servicios</p>
+                <p className="text-2xl font-bold text-gray-900">{servicios.length}</p>
+              </div>
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Briefcase className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Activos</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {servicios.filter(s => s.activo).length}
+                </p>
+              </div>
+              <div className="bg-green-100 p-2 rounded-lg">
+                <Briefcase className="h-5 w-5 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Categorías</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {new Set(servicios.map(s => s.categoria)).size}
+                </p>
+              </div>
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Briefcase className="h-5 w-5 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Valor Promedio</p>
+                <p className="text-2xl font-bold text-cyan-600">
+                  {formatPrice(servicios.reduce((sum, s) => sum + s.precio, 0) / servicios.length || 0)}
+                </p>
+              </div>
+              <div className="bg-cyan-100 p-2 rounded-lg">
+                <DollarSign className="h-5 w-5 text-cyan-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Servicios Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredServicios.map((servicio) => (
+          <Card key={servicio.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle className="text-lg">{servicio.nombre}</CardTitle>
+                  <CardDescription className="text-sm text-gray-500">
+                    {servicio.categoria}
+                  </CardDescription>
+                </div>
+                <Badge variant={servicio.activo ? "default" : "secondary"}>
+                  {servicio.activo ? "Activo" : "Inactivo"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-600 line-clamp-3">
+                {servicio.descripcion}
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Precio</p>
+                  <p className="font-medium text-green-600">
+                    {formatPrice(servicio.precio)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Duración</p>
+                  <p className="font-medium flex items-center">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {servicio.duracion}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="pt-3 border-t">
+                <div className="flex space-x-2">
+                  <Button size="sm" variant="outline" className="flex-1">
+                    <Edit className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {filteredServicios.length === 0 && (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Briefcase className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No se encontraron servicios
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {searchTerm ? 'No hay servicios que coincidan con tu búsqueda.' : 'Comienza agregando tu primer servicio.'}
+            </p>
+            <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Agregar Servicio
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
