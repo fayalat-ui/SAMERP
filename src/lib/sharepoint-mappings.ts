@@ -1,0 +1,63 @@
+// SharePoint List Mappings for SAM ERP
+export const SHAREPOINT_LISTS = {
+  // Módulo Administradores
+  MANDANTES: 'Tbl_Mandantes',
+  PRESUPUESTO: 'TBL_PRESUPUESTO',
+  
+  // Módulo RR.HH
+  JORNADAS: 'TBL_JORNADAS',
+  TRABAJADORES: 'TBL_TRABAJADORES',
+  SOLICITUD_CONTRATOS: 'SOLICITUD_CONTRATOS',
+  VACACIONES: 'TBL_VACACIONES',
+  
+  // Módulo OSP
+  SERVICIOS: 'TBL_SERVICIOS',
+  REGISTRO_CURSO_OS10: 'TBL_REGISTRO_CURSO_OS10',
+  DIRECTIVAS: 'TBL_DIRECTIVAS',
+  
+  // Sistema de usuarios y permisos (asumiendo que existen)
+  USUARIOS: 'TBL_USUARIOS',
+  ROLES: 'TBL_ROLES',
+  PERMISOS: 'TBL_PERMISOS',
+  ROL_PERMISOS: 'TBL_ROL_PERMISOS'
+} as const;
+
+// Módulos del sistema
+export const MODULES = {
+  ADMINISTRADORES: 'administradores',
+  RRHH: 'rrhh',
+  OSP: 'osp',
+  USUARIOS: 'usuarios'
+} as const;
+
+// Niveles de permisos
+export const PERMISSION_LEVELS = {
+  LECTURA: 'lectura',
+  COLABORACION: 'colaboracion',
+  ADMINISTRACION: 'administracion'
+} as const;
+
+// Mapeo de módulos a listas
+export const MODULE_LISTS = {
+  [MODULES.ADMINISTRADORES]: [
+    SHAREPOINT_LISTS.MANDANTES,
+    SHAREPOINT_LISTS.PRESUPUESTO
+  ],
+  [MODULES.RRHH]: [
+    SHAREPOINT_LISTS.JORNADAS,
+    SHAREPOINT_LISTS.TRABAJADORES,
+    SHAREPOINT_LISTS.SOLICITUD_CONTRATOS,
+    SHAREPOINT_LISTS.VACACIONES
+  ],
+  [MODULES.OSP]: [
+    SHAREPOINT_LISTS.SERVICIOS,
+    SHAREPOINT_LISTS.REGISTRO_CURSO_OS10,
+    SHAREPOINT_LISTS.DIRECTIVAS
+  ],
+  [MODULES.USUARIOS]: [
+    SHAREPOINT_LISTS.USUARIOS,
+    SHAREPOINT_LISTS.ROLES,
+    SHAREPOINT_LISTS.PERMISOS,
+    SHAREPOINT_LISTS.ROL_PERMISOS
+  ]
+} as const;

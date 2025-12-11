@@ -3,7 +3,8 @@ import { PublicClientApplication, AccountInfo } from '@azure/msal-browser';
 import { MsalProvider, useMsal } from '@azure/msal-react';
 import { msalConfig, loginRequest } from '@/lib/msalConfig';
 import { sharePointClient } from '@/lib/sharepoint';
-import { MODULES, ACTIONS } from '@/lib/permissions';
+import { usuariosService } from '@/lib/sharepoint-services';
+import { MODULES, PERMISSION_LEVELS } from '@/lib/sharepoint-mappings';
 
 interface User {
   id: string;
@@ -12,7 +13,7 @@ interface User {
   rol_id: number;
   rol_nombre: string;
   activo: boolean;
-  permisos: string[];
+  permisos: { [module: string]: string }; // module -> permission level
 }
 
 interface SharePointAuthContextType {
@@ -20,7 +21,10 @@ interface SharePointAuthContextType {
   login: () => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
-  hasPermission: (module: string, action: string) => boolean;
+  hasPermission: (module: string, level: string) => boolean;
+  canRead: (module: string) => boolean;
+  canCollaborate: (module: string) => boolean;
+  canAdministrate: (module: string) => boolean;
   account: AccountInfo | null;
 }
 
@@ -61,66 +65,48 @@ function SharePointAuthProviderInner({ children }: { children: ReactNode }) {
       await sharePointClient.initializeSite();
       
       // Try to find user in SharePoint Users list
-      // This assumes you have a "Users" or "Usuarios" list in SharePoint
-      const users = await sharePointClient.getListItems(
-        'Usuarios', 
-        'fields/id,fields/email,fields/nombre,fields/rol_id,fields/activo',
-        `fields/email eq '${account.username}'`
-      );
+      const existingUser = await usuariosService.getUsuarioByEmail(account.username);
 
-      if (users.length > 0) {
-        const userData = users[0].fields;
+      if (existingUser) {
+        // Get user role
+        const roles = await usuariosService.getRoles();
+        const userRole = roles.find(role => role.id === existingUser.rol_id);
         
-        // Get user role and permissions from SharePoint
-        const roles = await sharePointClient.getListItems(
-          'Roles',
-          'fields/id,fields/nombre',
-          `fields/id eq ${userData.rol_id}`
-        );
-
-        const roleName = roles.length > 0 ? roles[0].fields.nombre : 'Usuario';
-
         // Get permissions for the role
-        const rolePermisos = await sharePointClient.getListItems(
-          'RolPermisos',
-          'fields/permiso_id',
-          `fields/rol_id eq ${userData.rol_id}`
-        );
-
-        const permisoIds = rolePermisos.map(rp => rp.fields.permiso_id);
+        const rolePermisos = await usuariosService.getRolPermisos(existingUser.rol_id.toString());
+        const permisos = await usuariosService.getPermisos();
         
-        let userPermisos: string[] = [];
-        if (permisoIds.length > 0) {
-          const permisos = await sharePointClient.getListItems(
-            'Permisos',
-            'fields/modulo,fields/accion',
-            `fields/id in (${permisoIds.join(',')})`
-          );
-          
-          userPermisos = permisos.map(p => `${p.fields.modulo}.${p.fields.accion}`);
-        }
+        // Build permissions object
+        const userPermisos: { [module: string]: string } = {};
+        
+        rolePermisos.forEach(rp => {
+          const permiso = permisos.find(p => p.id === rp.permiso_id);
+          if (permiso) {
+            userPermisos[permiso.modulo] = permiso.nivel;
+          }
+        });
 
         const userSession: User = {
-          id: userData.id,
-          email: userData.email,
-          nombre: userData.nombre || account.name || account.username,
-          rol_id: userData.rol_id,
-          rol_nombre: roleName,
-          activo: userData.activo,
+          id: existingUser.id,
+          email: existingUser.email,
+          nombre: existingUser.nombre || account.name || account.username,
+          rol_id: existingUser.rol_id,
+          rol_nombre: userRole?.nombre || 'Usuario',
+          activo: existingUser.activo,
           permisos: userPermisos
         };
 
         setUser(userSession);
       } else {
-        // Create new user in SharePoint if not exists
+        // Create new user with basic permissions
         const newUser = {
           email: account.username,
           nombre: account.name || account.username,
-          rol_id: 3, // Default to "Operador" role
+          rol_id: 3, // Default role
           activo: true
         };
 
-        await sharePointClient.createListItem('Usuarios', newUser);
+        await usuariosService.createUsuario(newUser);
         
         // Reload user data
         await loadUserData(account);
@@ -156,15 +142,31 @@ function SharePointAuthProviderInner({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const hasPermission = (module: string, action: string): boolean => {
+  const hasPermission = (module: string, level: string): boolean => {
     if (!user || !user.permisos) return false;
     
-    // Administrators have full access
+    // Super admin has full access
     if (user.rol_id === 1) return true;
     
-    // Check specific permission
-    return user.permisos.includes(`${module}.${action}`);
+    const userPermissionLevel = user.permisos[module];
+    if (!userPermissionLevel) return false;
+    
+    // Check permission hierarchy
+    switch (level) {
+      case PERMISSION_LEVELS.LECTURA:
+        return [PERMISSION_LEVELS.LECTURA, PERMISSION_LEVELS.COLABORACION, PERMISSION_LEVELS.ADMINISTRACION].includes(userPermissionLevel);
+      case PERMISSION_LEVELS.COLABORACION:
+        return [PERMISSION_LEVELS.COLABORACION, PERMISSION_LEVELS.ADMINISTRACION].includes(userPermissionLevel);
+      case PERMISSION_LEVELS.ADMINISTRACION:
+        return userPermissionLevel === PERMISSION_LEVELS.ADMINISTRACION;
+      default:
+        return false;
+    }
   };
+
+  const canRead = (module: string): boolean => hasPermission(module, PERMISSION_LEVELS.LECTURA);
+  const canCollaborate = (module: string): boolean => hasPermission(module, PERMISSION_LEVELS.COLABORACION);
+  const canAdministrate = (module: string): boolean => hasPermission(module, PERMISSION_LEVELS.ADMINISTRACION);
 
   return (
     <SharePointAuthContext.Provider value={{ 
@@ -173,6 +175,9 @@ function SharePointAuthProviderInner({ children }: { children: ReactNode }) {
       logout, 
       isLoading, 
       hasPermission,
+      canRead,
+      canCollaborate,
+      canAdministrate,
       account: accounts.length > 0 ? accounts[0] : null
     }}>
       {children}
