@@ -59,8 +59,9 @@ export default function Vacaciones() {
     if (confirm('¿Estás seguro de que deseas eliminar esta solicitud de vacaciones?')) {
       try {
         await remove(id);
-      } catch (err: any) {
-        alert('Error al eliminar solicitud: ' + err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        alert('Error al eliminar solicitud: ' + errorMessage);
       }
     }
   };

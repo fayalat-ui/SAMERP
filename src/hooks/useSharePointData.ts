@@ -19,8 +19,15 @@ interface UseSharePointDataResult<T> {
   remove: (id: string) => Promise<void>;
 }
 
-export function useSharePointData<T = any>(
-  service: any,
+interface SharePointService {
+  getItems: (listName: string, select?: string, filter?: string, orderBy?: string) => Promise<unknown[]>;
+  createItem: (listName: string, item: Record<string, unknown>) => Promise<unknown>;
+  updateItem: (listName: string, id: string, item: Record<string, unknown>) => Promise<unknown>;
+  deleteItem: (listName: string, id: string) => Promise<void>;
+}
+
+export function useSharePointData<T = Record<string, unknown>>(
+  service: SharePointService,
   options: UseSharePointDataOptions
 ): UseSharePointDataResult<T> {
   const [data, setData] = useState<T[]>([]);
@@ -41,9 +48,10 @@ export function useSharePointData<T = any>(
         options.filter,
         options.orderBy
       );
-      setData(result);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar datos');
+      setData(result as T[]);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al cargar datos';
+      setError(errorMessage);
       console.error(`Error fetching data from ${options.listName}:`, err);
     } finally {
       setLoading(false);
@@ -54,11 +62,12 @@ export function useSharePointData<T = any>(
     if (!service) throw new Error('Service not available');
 
     try {
-      const result = await service.createItem(options.listName, item);
+      const result = await service.createItem(options.listName, item as Record<string, unknown>);
       await fetchData(); // Refresh data
-      return result;
-    } catch (err: any) {
-      throw new Error(err.message || 'Error al crear elemento');
+      return result as T;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear elemento';
+      throw new Error(errorMessage);
     }
   }, [service, options.listName, fetchData]);
 
@@ -66,11 +75,12 @@ export function useSharePointData<T = any>(
     if (!service) throw new Error('Service not available');
 
     try {
-      const result = await service.updateItem(options.listName, id, item);
+      const result = await service.updateItem(options.listName, id, item as Record<string, unknown>);
       await fetchData(); // Refresh data
-      return result;
-    } catch (err: any) {
-      throw new Error(err.message || 'Error al actualizar elemento');
+      return result as T;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al actualizar elemento';
+      throw new Error(errorMessage);
     }
   }, [service, options.listName, fetchData]);
 
@@ -80,8 +90,9 @@ export function useSharePointData<T = any>(
     try {
       await service.deleteItem(options.listName, id);
       await fetchData(); // Refresh data
-    } catch (err: any) {
-      throw new Error(err.message || 'Error al eliminar elemento');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar elemento';
+      throw new Error(errorMessage);
     }
   }, [service, options.listName, fetchData]);
 

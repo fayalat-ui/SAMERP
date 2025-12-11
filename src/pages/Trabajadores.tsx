@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useSharePointAuth } from '@/contexts/SharePointAuth Context';
+import { useSharePointAuth } from '@/contexts/SharePointAuthContext';
 import { useSharePointData } from '@/hooks/useSharePointData';
 import { trabajadoresService } from '@/lib/sharepoint-services';
 import { SHAREPOINT_LISTS } from '@/lib/sharepoint-mappings';
@@ -22,7 +22,7 @@ interface Trabajador {
   activo: boolean;
 }
 
-export function Trabajadores() {
+export default function Trabajadores() {
   const { canCollaborate, canAdministrate } = useSharePointAuth();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -63,8 +63,9 @@ export function Trabajadores() {
     if (confirm('¿Estás seguro de que deseas eliminar este trabajador?')) {
       try {
         await remove(id);
-      } catch (err: any) {
-        alert('Error al eliminar trabajador: ' + err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        alert('Error al eliminar trabajador: ' + errorMessage);
       }
     }
   };

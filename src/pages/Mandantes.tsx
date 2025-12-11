@@ -60,8 +60,9 @@ export default function Mandantes() {
     if (confirm('¿Estás seguro de que deseas eliminar este mandante?')) {
       try {
         await remove(id);
-      } catch (err: any) {
-        alert('Error al eliminar mandante: ' + err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        alert('Error al eliminar mandante: ' + errorMessage);
       }
     }
   };

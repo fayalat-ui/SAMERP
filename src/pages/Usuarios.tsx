@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSharePointAuth } from '@/contexts/SharePointAuthContext';
 import { useSharePointData } from '@/hooks/useSharePointData';
 import { usuariosService } from '@/lib/sharepoint-services';
-import { SHAREPOINT_LISTS, MODULES, PERMISSION_LEVELS } from '@/lib/sharepoint-mappings';
+import { SHAREPOINT_LISTS } from '@/lib/sharepoint-mappings';
 import { Plus, Search, Edit, Trash2, Users, Shield } from 'lucide-react';
 
 interface Usuario {
@@ -75,8 +75,9 @@ export default function Usuarios() {
     if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
       try {
         await removeUsuario(id);
-      } catch (err: any) {
-        alert('Error al eliminar usuario: ' + err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        alert('Error al eliminar usuario: ' + errorMessage);
       }
     }
   };
@@ -84,8 +85,9 @@ export default function Usuarios() {
   const handleToggleActive = async (usuario: Usuario) => {
     try {
       await updateUsuario(usuario.id, { activo: !usuario.activo });
-    } catch (err: any) {
-      alert('Error al actualizar usuario: ' + err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      alert('Error al actualizar usuario: ' + errorMessage);
     }
   };
 

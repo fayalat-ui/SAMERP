@@ -7,10 +7,18 @@ import { checkSharePointConnection } from '@/lib/sharepoint';
 import { trabajadoresService, mandantesService, serviciosService } from '@/lib/sharepoint-services';
 import { MODULES } from '@/lib/sharepoint-mappings';
 
+interface TestData {
+  [key: string]: {
+    count?: number;
+    data?: Record<string, unknown>[];
+    error?: string;
+  };
+}
+
 export function SharePointTest() {
   const { user, login, logout, isLoading, canRead, canCollaborate, canAdministrate } = useSharePointAuth();
   const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
-  const [testData, setTestData] = useState<any>({});
+  const [testData, setTestData] = useState<TestData>({});
   const [testing, setTesting] = useState(false);
 
   const testConnection = async () => {
@@ -21,7 +29,7 @@ export function SharePointTest() {
 
       if (status.success) {
         // Test data loading from different lists
-        const testResults: any = {};
+        const testResults: TestData = {};
 
         try {
           const trabajadores = await trabajadoresService.getTrabajadores();
@@ -47,7 +55,8 @@ export function SharePointTest() {
         setTestData(testResults);
       }
     } catch (error) {
-      setConnectionStatus({ success: false, message: `Error: ${error}` });
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setConnectionStatus({ success: false, message: `Error: ${errorMessage}` });
     } finally {
       setTesting(false);
     }
@@ -143,7 +152,7 @@ export function SharePointTest() {
 
             {testData && Object.keys(testData).length > 0 && (
               <div className="space-y-4 mt-4">
-                {Object.entries(testData).map(([listName, data]: [string, any]) => (
+                {Object.entries(testData).map(([listName, data]) => (
                   <div key={listName} className="border rounded p-3">
                     <h4 className="font-medium capitalize mb-2">{listName}</h4>
                     {data.error ? (

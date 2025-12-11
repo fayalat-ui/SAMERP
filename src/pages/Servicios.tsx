@@ -59,8 +59,9 @@ export default function Servicios() {
     if (confirm('¿Estás seguro de que deseas eliminar este servicio?')) {
       try {
         await remove(id);
-      } catch (err: any) {
-        alert('Error al eliminar servicio: ' + err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+        alert('Error al eliminar servicio: ' + errorMessage);
       }
     }
   };

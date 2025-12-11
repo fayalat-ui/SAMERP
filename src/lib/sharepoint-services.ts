@@ -23,7 +23,7 @@ export class SharePointService {
     }
   }
 
-  async createItem(listName: string, data: any) {
+  async createItem(listName: string, data: Record<string, unknown>) {
     try {
       const result = await sharePointClient.createListItem(listName, data);
       return result;
@@ -33,7 +33,7 @@ export class SharePointService {
     }
   }
 
-  async updateItem(listName: string, itemId: string, data: any) {
+  async updateItem(listName: string, itemId: string, data: Record<string, unknown>) {
     try {
       const result = await sharePointClient.updateListItem(listName, itemId, data);
       return result;
@@ -59,11 +59,11 @@ export class MandantesService extends SharePointService {
     return this.getItems(SHAREPOINT_LISTS.MANDANTES);
   }
 
-  async createMandante(data: any) {
+  async createMandante(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.MANDANTES, data);
   }
 
-  async updateMandante(id: string, data: any) {
+  async updateMandante(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.MANDANTES, id, data);
   }
 
@@ -86,11 +86,11 @@ export class TrabajadoresService extends SharePointService {
     return items.length > 0 ? items[0] : null;
   }
 
-  async createTrabajador(data: any) {
+  async createTrabajador(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.TRABAJADORES, data);
   }
 
-  async updateTrabajador(id: string, data: any) {
+  async updateTrabajador(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.TRABAJADORES, id, data);
   }
 
@@ -104,11 +104,11 @@ export class ServiciosService extends SharePointService {
     return this.getItems(SHAREPOINT_LISTS.SERVICIOS);
   }
 
-  async createServicio(data: any) {
+  async createServicio(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.SERVICIOS, data);
   }
 
-  async updateServicio(id: string, data: any) {
+  async updateServicio(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.SERVICIOS, id, data);
   }
 
@@ -130,11 +130,11 @@ export class VacacionesService extends SharePointService {
     );
   }
 
-  async createVacacion(data: any) {
+  async createVacacion(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.VACACIONES, data);
   }
 
-  async updateVacacion(id: string, data: any) {
+  async updateVacacion(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.VACACIONES, id, data);
   }
 
@@ -148,11 +148,11 @@ export class DirectivasService extends SharePointService {
     return this.getItems(SHAREPOINT_LISTS.DIRECTIVAS);
   }
 
-  async createDirectiva(data: any) {
+  async createDirectiva(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.DIRECTIVAS, data);
   }
 
-  async updateDirectiva(id: string, data: any) {
+  async updateDirectiva(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.DIRECTIVAS, id, data);
   }
 
@@ -175,11 +175,11 @@ export class UsuariosService extends SharePointService {
     return items.length > 0 ? items[0] : null;
   }
 
-  async createUsuario(data: any) {
+  async createUsuario(data: Record<string, unknown>) {
     return this.createItem(SHAREPOINT_LISTS.USUARIOS, data);
   }
 
-  async updateUsuario(id: string, data: any) {
+  async updateUsuario(id: string, data: Record<string, unknown>) {
     return this.updateItem(SHAREPOINT_LISTS.USUARIOS, id, data);
   }
 
