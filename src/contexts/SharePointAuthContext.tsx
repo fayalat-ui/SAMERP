@@ -33,6 +33,13 @@ const SharePointAuthContext = createContext<SharePointAuthContextType | undefine
 // Create MSAL instance
 const msalInstance = new PublicClientApplication(msalConfig);
 
+// Initialize MSAL
+msalInstance.initialize().then(() => {
+  console.log('MSAL initialized successfully');
+}).catch((error) => {
+  console.error('MSAL initialization failed:', error);
+});
+
 export function SharePointAuthProvider({ children }: { children: ReactNode }) {
   return (
     <MsalProvider instance={msalInstance}>
@@ -65,16 +72,60 @@ function SharePointAuthProviderInner({ children }: { children: ReactNode }) {
       await sharePointClient.initializeSite();
       
       // Try to find user in SharePoint Users list
-      const existingUser = await usuariosService.getUsuarioByEmail(account.username);
+      let existingUser;
+      try {
+        existingUser = await usuariosService.getUsuarioByEmail(account.username);
+      } catch (error) {
+        console.warn('Could not load user from SharePoint, using default permissions:', error);
+        // Create a default user if SharePoint lists are not available
+        const defaultUser: User = {
+          id: account.localAccountId || account.homeAccountId,
+          email: account.username,
+          nombre: account.name || account.username,
+          rol_id: 2, // Default role
+          rol_nombre: 'Usuario',
+          activo: true,
+          permisos: {
+            [MODULES.ADMINISTRADORES]: PERMISSION_LEVELS.LECTURA,
+            [MODULES.RRHH]: PERMISSION_LEVELS.LECTURA,
+            [MODULES.OSP]: PERMISSION_LEVELS.LECTURA,
+            [MODULES.USUARIOS]: PERMISSION_LEVELS.LECTURA
+          }
+        };
+        setUser(defaultUser);
+        return;
+      }
 
       if (existingUser) {
-        // Get user role
-        const roles = await usuariosService.getRoles();
-        const userRole = roles.find(role => role.id === existingUser.rol_id);
-        
-        // Get permissions for the role
-        const rolePermisos = await usuariosService.getRolPermisos(existingUser.rol_id.toString());
-        const permisos = await usuariosService.getPermisos();
+        // Get user role and permissions from SharePoint
+        let roles, userRole, rolePermisos, permisos;
+        try {
+          roles = await usuariosService.getRoles();
+          userRole = roles.find(role => role.id === existingUser.rol_id);
+          
+          // Get permissions for the role
+          rolePermisos = await usuariosService.getRolPermisos(existingUser.rol_id.toString());
+          permisos = await usuariosService.getPermisos();
+        } catch (error) {
+          console.warn('Could not load roles/permissions from SharePoint, using defaults:', error);
+          // Use default permissions if SharePoint data is not available
+          const userSession: User = {
+            id: existingUser.id,
+            email: existingUser.email,
+            nombre: existingUser.nombre || account.name || account.username,
+            rol_id: existingUser.rol_id || 2,
+            rol_nombre: 'Usuario',
+            activo: existingUser.activo,
+            permisos: {
+              [MODULES.ADMINISTRADORES]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.RRHH]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.OSP]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.USUARIOS]: PERMISSION_LEVELS.LECTURA
+            }
+          };
+          setUser(userSession);
+          return;
+        }
         
         // Build permissions object
         const userPermisos: { [module: string]: string } = {};
@@ -106,13 +157,48 @@ function SharePointAuthProviderInner({ children }: { children: ReactNode }) {
           activo: true
         };
 
-        await usuariosService.createUsuario(newUser);
-        
-        // Reload user data
-        await loadUserData(account);
+        try {
+          await usuariosService.createUsuario(newUser);
+          // Reload user data
+          await loadUserData(account);
+        } catch (error) {
+          console.warn('Could not create user in SharePoint, using default:', error);
+          // Use default user if creation fails
+          const defaultUser: User = {
+            id: account.localAccountId || account.homeAccountId,
+            email: account.username,
+            nombre: account.name || account.username,
+            rol_id: 3,
+            rol_nombre: 'Usuario',
+            activo: true,
+            permisos: {
+              [MODULES.ADMINISTRADORES]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.RRHH]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.OSP]: PERMISSION_LEVELS.LECTURA,
+              [MODULES.USUARIOS]: PERMISSION_LEVELS.LECTURA
+            }
+          };
+          setUser(defaultUser);
+        }
       }
     } catch (error) {
       console.error('Error loading user data from SharePoint:', error);
+      // Fallback to basic user with read permissions
+      const fallbackUser: User = {
+        id: account.localAccountId || account.homeAccountId,
+        email: account.username,
+        nombre: account.name || account.username,
+        rol_id: 3,
+        rol_nombre: 'Usuario',
+        activo: true,
+        permisos: {
+          [MODULES.ADMINISTRADORES]: PERMISSION_LEVELS.LECTURA,
+          [MODULES.RRHH]: PERMISSION_LEVELS.LECTURA,
+          [MODULES.OSP]: PERMISSION_LEVELS.LECTURA,
+          [MODULES.USUARIOS]: PERMISSION_LEVELS.LECTURA
+        }
+      };
+      setUser(fallbackUser);
     } finally {
       setIsLoading(false);
     }

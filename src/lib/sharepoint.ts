@@ -1,6 +1,6 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
-import { PublicClientApplication } from '@azure/msal-browser';
+import { PublicClientApplication, AccountInfo } from '@azure/msal-browser';
 import { msalConfig, loginRequest } from './msalConfig';
 
 // Custom authentication provider for Microsoft Graph
@@ -24,9 +24,15 @@ class MsalAuthProvider implements AuthenticationProvider {
       });
       return response.accessToken;
     } catch (error) {
+      console.error('Silent token acquisition failed:', error);
       // If silent token acquisition fails, try interactive
-      const response = await this.msalInstance.acquireTokenPopup(loginRequest);
-      return response.accessToken;
+      try {
+        const response = await this.msalInstance.acquireTokenPopup(loginRequest);
+        return response.accessToken;
+      } catch (interactiveError) {
+        console.error('Interactive token acquisition failed:', interactiveError);
+        throw new Error('Failed to acquire access token');
+      }
     }
   }
 }
@@ -54,6 +60,7 @@ class SharePointClient {
         .get();
       
       this.siteId = site.id;
+      console.log('SharePoint site initialized:', site.displayName);
       return site;
     } catch (error) {
       console.error('Error initializing SharePoint site:', error);
