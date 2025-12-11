@@ -48,3 +48,5 @@ export function ProtectedRoute({ children, module, level }: ProtectedRouteProps)
 
   return <>{children}</>;
 }
+
+export default ProtectedRoute;

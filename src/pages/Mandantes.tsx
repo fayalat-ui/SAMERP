@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Building, Plus, Search, Edit, Trash2, MapPin, Phone, Mail } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { useSharePointAuth } from '@/contexts/SharePointAuthContext';
+import { useSharePointData } from '@/hooks/useSharePointData';
+import { mandantesService } from '@/lib/sharepoint-services';
+import { SHAREPOINT_LISTS } from '@/lib/sharepoint-mappings';
+import { Plus, Search, Edit, Trash2, Building } from 'lucide-react';
 
 interface Mandante {
   id: string;
@@ -14,242 +16,192 @@ interface Mandante {
   direccion: string;
   telefono: string;
   email: string;
-  contacto_principal: string;
+  contacto: string;
   activo: boolean;
-  created_at: string;
 }
 
 export default function Mandantes() {
-  const [mandantes, setMandantes] = useState<Mandante[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { canCollaborate, canAdministrate } = useSharePointAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const {
+    data: mandantes,
+    loading,
+    error,
+    refetch,
+    create,
+    update,
+    remove
+  } = useSharePointData<Mandante>(mandantesService, {
+    listName: SHAREPOINT_LISTS.MANDANTES,
+    select: 'id,nombre,rut,direccion,telefono,email,contacto,activo'
+  });
 
-  useEffect(() => {
-    fetchMandantes();
-  }, []);
-
-  const fetchMandantes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tbl_mandantes')
-        .select('*')
-        .order('nombre');
-
-      if (error) {
-        console.error('Error fetching mandantes:', error);
-        toast.error('Error al cargar mandantes: ' + error.message);
-        // Mostrar datos de ejemplo si hay error
-        setMandantes([
-          {
-            id: '1',
-            nombre: 'Empresa Ejemplo S.A.',
-            rut: '12.345.678-9',
-            direccion: 'Av. Principal 123, Santiago',
-            telefono: '+56 2 2345 6789',
-            email: 'contacto@ejemplo.cl',
-            contacto_principal: 'Juan Pérez',
-            activo: true,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      } else {
-        setMandantes(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching mandantes:', error);
-      toast.error('Error de conexión');
-      setMandantes([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const canEdit = canCollaborate('administradores');
+  const canDelete = canAdministrate('administradores');
 
   const filteredMandantes = mandantes.filter(mandante =>
     mandante.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mandante.rut?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    mandante.contacto_principal?.toLowerCase().includes(searchTerm.toLowerCase())
+    mandante.rut?.includes(searchTerm) ||
+    mandante.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCreate = async () => {
+    // TODO: Implement create modal
+    console.log('Create mandante');
+  };
+
+  const handleEdit = async (mandante: Mandante) => {
+    // TODO: Implement edit modal
+    console.log('Edit mandante:', mandante);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este mandante?')) {
+      try {
+        await remove(id);
+      } catch (err: any) {
+        alert('Error al eliminar mandante: ' + err.message);
+      }
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-cyan-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-3 rounded-lg">
-            <Building className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mandantes</h1>
-            <p className="text-gray-600">Gestión de empresas mandantes</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Mandantes</h1>
+          <p className="text-gray-600">Gestión de empresas mandantes</p>
         </div>
-        <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Mandante
-        </Button>
+        {canEdit && (
+          <Button onClick={handleCreate} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Nuevo Mandante
+          </Button>
+        )}
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar por nombre, RUT o contacto..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+      {error && (
+        <Card className="border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Mandantes</p>
-                <p className="text-2xl font-bold text-gray-900">{mandantes.length}</p>
-              </div>
-              <div className="bg-blue-100 p-2 rounded-lg">
-                <Building className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Activos</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {mandantes.filter(m => m.activo).length}
-                </p>
-              </div>
-              <div className="bg-green-100 p-2 rounded-lg">
-                <Building className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Inactivos</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {mandantes.filter(m => !m.activo).length}
-                </p>
-              </div>
-              <div className="bg-red-100 p-2 rounded-lg">
-                <Building className="h-5 w-5 text-red-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Este Mes</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {mandantes.filter(m => {
-                    const created = new Date(m.created_at);
-                    const now = new Date();
-                    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
-              </div>
-              <div className="bg-purple-100 p-2 rounded-lg">
-                <Plus className="h-5 w-5 text-purple-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Mandantes Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMandantes.map((mandante) => (
-          <Card key={mandante.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{mandante.nombre}</CardTitle>
-                  <CardDescription className="text-sm text-gray-500">
-                    RUT: {mandante.rut}
-                  </CardDescription>
-                </div>
-                <Badge variant={mandante.activo ? "default" : "secondary"}>
-                  {mandante.activo ? "Activo" : "Inactivo"}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <div className="flex items-center text-sm text-gray-600">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  {mandante.direccion || 'No especificada'}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="h-4 w-4 mr-2" />
-                  {mandante.telefono || 'No especificado'}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {mandante.email || 'No especificado'}
-                </div>
-              </div>
-              
-              <div className="pt-3 border-t">
-                <p className="text-xs text-gray-500 mb-3">
-                  Contacto: {mandante.contacto_principal || 'No especificado'}
-                </p>
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="flex-1">
-                    <Edit className="h-3 w-3 mr-1" />
-                    Editar
-                  </Button>
-                  <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredMandantes.length === 0 && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No se encontraron mandantes
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm ? 'No hay mandantes que coincidan con tu búsqueda.' : 'Comienza agregando tu primer mandante.'}
-            </p>
-            <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Mandante
+            <p className="text-red-800">Error: {error}</p>
+            <Button onClick={refetch} variant="outline" size="sm" className="mt-2">
+              Reintentar
             </Button>
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Building className="h-5 w-5" />
+              Lista de Mandantes ({filteredMandantes.length})
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar mandantes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filteredMandantes.length === 0 ? (
+            <div className="text-center py-8">
+              <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">
+                {searchTerm ? 'No se encontraron mandantes' : 'No hay mandantes registrados'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">Empresa</th>
+                    <th className="text-left py-3 px-4 font-medium">RUT</th>
+                    <th className="text-left py-3 px-4 font-medium">Contacto</th>
+                    <th className="text-left py-3 px-4 font-medium">Email</th>
+                    <th className="text-left py-3 px-4 font-medium">Estado</th>
+                    {(canEdit || canDelete) && (
+                      <th className="text-left py-3 px-4 font-medium">Acciones</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMandantes.map((mandante) => (
+                    <tr key={mandante.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div>
+                          <div className="font-medium">{mandante.nombre}</div>
+                          {mandante.direccion && (
+                            <div className="text-sm text-gray-500">{mandante.direccion}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-sm">{mandante.rut}</td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <div className="font-medium">{mandante.contacto}</div>
+                          {mandante.telefono && (
+                            <div className="text-sm text-gray-500">{mandante.telefono}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-sm">{mandante.email}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={mandante.activo ? "default" : "secondary"}>
+                          {mandante.activo ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </td>
+                      {(canEdit || canDelete) && (
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(mandante)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(mandante.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
