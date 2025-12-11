@@ -4,8 +4,8 @@ import { Configuration, PopupRequest } from '@azure/msal-browser';
 export const msalConfig: Configuration = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID || '4523a41a-818e-4d92-8775-1ccf155e7327',
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_TENANT_ID || '6b462c35-c003-4f5f-a3f5-0e8a734c0f3c'}`,
-    redirectUri: window.location.origin,
+    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_TENANT_ID || '2f7e4660-def9-427d-9c23-603e4e4dae55'}`,
+    redirectUri: import.meta.env.VITE_REDIRECT_URI || window.location.origin,
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
@@ -20,16 +20,16 @@ export const msalConfig: Configuration = {
         }
         switch (level) {
           case 1: // Error
-            console.error(message);
+            console.error('[MSAL Error]:', message);
             return;
           case 2: // Warning
-            console.warn(message);
+            console.warn('[MSAL Warning]:', message);
             return;
           case 3: // Info
-            console.info(message);
+            console.info('[MSAL Info]:', message);
             return;
           case 4: // Verbose
-            console.debug(message);
+            console.debug('[MSAL Debug]:', message);
             return;
           default:
             return;
@@ -43,7 +43,7 @@ export const msalConfig: Configuration = {
 export const loginRequest: PopupRequest = {
   scopes: [
     'User.Read',
-    'Sites.Read.All',
+    'Sites.Read.All', 
     'Sites.ReadWrite.All',
     'Files.ReadWrite.All'
   ],
